@@ -1,0 +1,10 @@
+[package]
+name = "ser-video"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ga_image = { path = "ext/ga_image" }
+num = "0.4"
+num-derive = "0.4"
+num-traits = "0.2"
