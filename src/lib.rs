@@ -91,12 +91,12 @@ pub struct SerVideoReader {
 }
 
 impl SerVideoReader {
-    pub fn new(mut reader: Box<dyn ReadSeek + Send>) -> Result<SerVideoReader, Box<dyn Error>> {
+    pub fn new(mut reader: Box<dyn ReadSeek + Send>) -> Result<SerVideoReader, Box<dyn Error + Send + Sync>> {
         let header: SerHeader = ga_image::utils::read_struct(&mut reader)?;
         Ok(SerVideoReader{ reader, metadata: get_metadata(&header)? })
     }
 
-    pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> Result<SerVideoReader, Box<dyn Error>> {
+    pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> Result<SerVideoReader, Box<dyn Error + Send + Sync>> {
         let reader = Box::new(std::io::BufReader::new(std::fs::File::open(path)?));
         SerVideoReader::new(reader)
     }
@@ -107,7 +107,7 @@ impl SerVideoReader {
 
     // TODO: read_next_frame() -> Result<Option<...>>
 
-    pub fn read_frame(&mut self, frame_idx: usize) -> Result<ga_image::Image, Box<dyn Error>> {
+    pub fn read_frame(&mut self, frame_idx: usize) -> Result<ga_image::Image, Box<dyn Error + Send + Sync>> {
         let mut img =
             ga_image::Image::new(self.metadata.width, self.metadata.height, None, self.metadata.pix_fmt, None, false);
 
@@ -153,7 +153,8 @@ pub struct WriterParameters {
 }
 
 impl SerVideoWriter {
-    pub fn new(mut writer: Box<dyn WriteSeek + Send>, params: &WriterParameters ) -> Result<SerVideoWriter, Box<dyn Error>> {
+    pub fn new(mut writer: Box<dyn WriteSeek + Send>, params: &WriterParameters )
+    -> Result<SerVideoWriter, Box<dyn Error + Send + Sync>> {
         let (color_format, bits_per_channel) = from_pixel_format(params.pixel_fmt)?;
 
         let header = SerHeader{
@@ -187,12 +188,12 @@ impl SerVideoWriter {
     pub fn from_path<P: AsRef<std::path::Path>>(
         path: P,
         params: &WriterParameters
-    ) -> Result<SerVideoWriter, Box<dyn Error>> {
+    ) -> Result<SerVideoWriter, Box<dyn Error + Send + Sync>> {
         let writer = Box::new(std::io::BufWriter::new(std::fs::File::create(path)?));
         SerVideoWriter::new(writer, params)
     }
 
-    pub fn write_frame(&mut self, image: &ga_image::Image) -> Result<(),  Box<dyn Error>> {
+    pub fn write_frame(&mut self, image: &ga_image::Image) -> Result<(),  Box<dyn Error + Send + Sync>> {
         if image.width() != self.width || image.height() != self.height || image.pixel_format() != self.pixel_fmt {
             return Err("mismatched frame size or pixel format".into());
         }
@@ -210,7 +211,7 @@ impl SerVideoWriter {
         Ok(())
     }
 
-    pub fn flush(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn flush(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
         self.writer.flush()?;
         Ok(())
     }
@@ -249,7 +250,7 @@ fn as_pixel_format(ser_color_fmt: SerColorFormat, bits_per_channel: u32) -> ga_i
 }
 
 /// Returns (color format, bits per channel).
-fn from_pixel_format(pixel_fmt: ga_image::PixelFormat) -> Result<(SerColorFormat, u32), Box<dyn Error>> {
+fn from_pixel_format(pixel_fmt: ga_image::PixelFormat) -> Result<(SerColorFormat, u32), Box<dyn Error + Send + Sync>> {
     type PF = ga_image::PixelFormat;
 
     match pixel_fmt {
@@ -267,10 +268,10 @@ fn from_pixel_format(pixel_fmt: ga_image::PixelFormat) -> Result<(SerColorFormat
     }
 }
 
-fn get_metadata(header: &SerHeader) -> Result<SerMetadata, Box<dyn Error>> {
+fn get_metadata(header: &SerHeader) -> Result<SerMetadata, Box<dyn Error + Send + Sync>> {
     let c_id = header.color_id;
     let ser_color_fmt = num::FromPrimitive::from_u32(u32::from_le(header.color_id))
-        .ok_or::<Box<dyn Error>>(format!("unsupported pixel format {}", c_id).into())?;
+        .ok_or::<Box<dyn Error + Send + Sync>>(format!("unsupported pixel format {}", c_id).into())?;
 
     let bits_per_channel = u32::from_le(header.bits_per_channel);
     if bits_per_channel > 16 {
