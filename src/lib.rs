@@ -87,11 +87,11 @@ impl<T: Write + Seek> WriteSeek for T {}
 
 pub struct SerVideoReader {
     metadata: SerMetadata,
-    reader: Box<dyn ReadSeek>
+    reader: Box<dyn ReadSeek + Send>
 }
 
 impl SerVideoReader {
-    pub fn new(mut reader: Box<dyn ReadSeek>) -> Result<SerVideoReader, Box<dyn Error>> {
+    pub fn new(mut reader: Box<dyn ReadSeek + Send>) -> Result<SerVideoReader, Box<dyn Error>> {
         let header: SerHeader = ga_image::utils::read_struct(&mut reader)?;
         Ok(SerVideoReader{ reader, metadata: get_metadata(&header)? })
     }
@@ -139,7 +139,7 @@ impl SerVideoReader {
 }
 
 pub struct SerVideoWriter {
-    writer: Box<dyn WriteSeek>,
+    writer: Box<dyn WriteSeek + Send>,
     num_images: usize,
     width: u32,
     height: u32,
@@ -153,7 +153,7 @@ pub struct WriterParameters {
 }
 
 impl SerVideoWriter {
-    pub fn new(mut writer: Box<dyn WriteSeek>, params: &WriterParameters ) -> Result<SerVideoWriter, Box<dyn Error>> {
+    pub fn new(mut writer: Box<dyn WriteSeek + Send>, params: &WriterParameters ) -> Result<SerVideoWriter, Box<dyn Error>> {
         let (color_format, bits_per_channel) = from_pixel_format(params.pixel_fmt)?;
 
         let header = SerHeader{
