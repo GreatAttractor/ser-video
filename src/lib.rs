@@ -48,7 +48,7 @@ macro_rules! str_as_byte_array {
 }
 
 #[repr(C, packed)]
-struct SerHeader {
+pub struct SerHeader {
     signature: [u8; 14],
     camera_series_id: u32,
     color_id: u32,
