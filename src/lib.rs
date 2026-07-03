@@ -31,8 +31,8 @@ pub enum SerColorFormat {
 }
 
 // see comment for `SerHeader::little_endian`
-const SER_LITTLE_ENDIAN: u32 = 0;
-const SER_BIG_ENDIAN: u32 = 1;
+pub const SER_LITTLE_ENDIAN: u32 = 0;
+pub const SER_BIG_ENDIAN: u32 = 1;
 
 macro_rules! str_as_byte_array {
     ($string:expr, $len:expr) => {
@@ -47,23 +47,25 @@ macro_rules! str_as_byte_array {
     }
 }
 
+// all fields are little-endian
+#[derive(Clone)]
 #[repr(C, packed)]
 pub struct SerHeader {
-    signature: [u8; 14],
-    camera_series_id: u32,
-    color_id: u32,
+    pub signature: [u8; 14],
+    pub camera_series_id: u32,
+    pub color_id: u32,
     // Online documentation claims this is 0 when 16-bit pixel data
     // is big-endian, but the meaning is actually reversed.
-    little_endian: u32,
-    img_width: u32,
-    img_height: u32,
-    bits_per_channel: u32,
-    frame_count: u32,
-    observer: [u8; 40],
-    instrument: [u8; 40],
-    telescope: [u8; 40],
-    date_time: i64,
-    date_time_utc: i64
+    pub little_endian: u32,
+    pub img_width: u32,
+    pub img_height: u32,
+    pub bits_per_channel: u32,
+    pub frame_count: u32,
+    pub observer: [u8; 40],
+    pub instrument: [u8; 40],
+    pub telescope: [u8; 40],
+    pub date_time: i64,
+    pub date_time_utc: i64
 }
 
 #[derive(Clone)]
@@ -86,6 +88,7 @@ pub trait WriteSeek: Write + Seek {}
 impl<T: Write + Seek> WriteSeek for T {}
 
 pub struct SerVideoReader {
+    header: SerHeader,
     metadata: SerMetadata,
     reader: Box<dyn ReadSeek + Send>
 }
@@ -93,7 +96,8 @@ pub struct SerVideoReader {
 impl SerVideoReader {
     pub fn new(mut reader: Box<dyn ReadSeek + Send>) -> Result<SerVideoReader, Box<dyn Error + Send + Sync>> {
         let header: SerHeader = ga_image::utils::read_struct(&mut reader)?;
-        Ok(SerVideoReader{ reader, metadata: get_metadata(&header)? })
+        let metadata = get_metadata(&header)?;
+        Ok(SerVideoReader{ header, metadata, reader })
     }
 
     pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> Result<SerVideoReader, Box<dyn Error + Send + Sync>> {
@@ -103,6 +107,10 @@ impl SerVideoReader {
 
     pub fn metadata(&self) -> SerMetadata {
         self.metadata.clone()
+    }
+
+    pub fn header(&self) -> SerHeader {
+        self.header.clone()
     }
 
     // TODO: read_next_frame() -> Result<Option<...>>
